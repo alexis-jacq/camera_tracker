@@ -1,4 +1,4 @@
-cmake camera_tracking
-=====================
+cmake camera_tracker
+====================
 
 Small project to learn openCV
