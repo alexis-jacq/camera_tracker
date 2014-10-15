@@ -26,6 +26,8 @@ int main(int, char**)
     if( !face_cascade.load( face_cascade_name ) ){ cout << "--(!)Error loading"<< std::endl ; return -1; };
     if( !eyes_cascade.load( eyes_cascade_name ) ){ cout << "--(!)Error loading"<< std::endl ; return -1; };
 
+
+/*
     // init features with goodfeaturtotrack
     //-------------------------------------
     Mat frame;
@@ -34,6 +36,26 @@ int main(int, char**)
     cvtColor(frame, gframe, CV_BGR2GRAY); // color -> gray
     vector<Point2f> pts; // 2D vector for the list of corner points
     goodFeaturesToTrack(gframe,pts,30,0.01,10,noArray(),3,false,0.04); // get the good corners
+*/
+
+    // init with cascade detection
+    //----------------------------
+    Mat frame;
+    Mat gframe; // gray frame that will be used for goodfeaturtotrack
+    cap >> frame; // get a new frame from camera
+    cvtColor(frame, gframe, CV_BGR2GRAY); // color -> gray
+    vector<Rect> faces; // 2D vector for the list of corner points
+    face_cascade.detectMultiScale( gframe, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30) );// detect + display faces
+    vector<Point2f> pts(faces.size());
+    vector<float> height(faces.size());
+    vector<float> width(faces.size());
+    for( int i = 0; i < faces.size(); i++ )
+    {
+        pts[i] = Point( faces[i].x + faces[i].width*0.5, faces[i].y + faces[i].height*0.5 );
+        width[i] = faces[i].width*0.5;
+        height[i] = faces[i].height*0.5;
+    }
+
 
     // loop with tracking with calcOptimalFlow
     //----------------------------------------
@@ -41,8 +63,6 @@ int main(int, char**)
 
     Mat next_gframe;
     vector<Point2f> next_pts;
-    Vec3b color;
-    std::vector<Rect> faces;
 
     while(true)
     {
@@ -52,26 +72,14 @@ int main(int, char**)
         vector<uchar> status;
         Mat err;
 
-        calcOpticalFlowPyrLK(gframe,next_gframe,pts,next_pts,status,err);//,Size(21,21),3,TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01),0,1e-4); // compute next positions of features
+        calcOpticalFlowPyrLK(gframe,next_gframe,pts,next_pts,status,err); // compute next positions of features
 
-        for(int i = 0; i < next_pts.size(); i++){     // change the color of the found corners
-            color = frame.at<Vec3b>(next_pts[i]); // get color-pixel
-            color[1]=255;
-            color[2]=0;
-            color[3]=0;
-            frame.at<Vec3b>(next_pts[i]) = color; // set color
-        }
-
-        // face cascade detection
-        //-----------------------
-
-        // detect + display faces and eyes
-        face_cascade.detectMultiScale( next_gframe, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30) );
-        for( size_t i = 0; i < faces.size(); i++ )
+        // display tracked points
+        for( size_t i = 0; i < pts.size(); i++ )
         {
-            Point center( faces[i].x + faces[i].width*0.5, faces[i].y + faces[i].height*0.5 );
-            ellipse( frame, center, Size( faces[i].width*0.5, faces[i].height*0.5), 0, 0, 360, Scalar( 255, 0, 255 ), 4, 8, 0 );
-         }
+            ellipse( frame, pts[i], Size( width[i], height[i]), 0, 0, 360, Scalar( 255, 0, 255 ), 4, 8, 0 );
+            //ellipse( frame, pts[i], Size( 10, 10), 0, 0, 360, Scalar( 255, 0, 255 ), 4, 8, 0 );
+        }
 
 
         imshow("tracking", frame);
