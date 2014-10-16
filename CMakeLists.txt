@@ -5,6 +5,8 @@ project(CameraProject)
 
 find_package(OpenCV REQUIRED )
 
+add_definitions(-std=c++11)
+
 include_directories(${OpenCV_INCLUDE_DIRS})
 #Déclaration de l'exécutable
 add_executable(camera	src/capture.cpp)

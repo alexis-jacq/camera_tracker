@@ -7,9 +7,14 @@
 using namespace cv;
 using namespace std;
 
+/** Functions headers */
+vector<vector<Point2f>> facePointsToTrack(Mat );
+void trackBoxes(Mat , Mat , vector<vector<Point2f>> , vector<vector<Point2f>>& ) ;
+//vector<Point2f> findCenters( vector<vector<Point2f>> ) ;
+
 /** Global variables */
 String face_cascade_name = "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml";
-String eyes_cascade_name = "/usr/share/opencv/haarcascades/haarcascade_eye_tree_eyeglasses.xml";
+String eyes_cascade_name = "/usr/share/opencv/haarcascades/haarcascade_eye.xml";
 CascadeClassifier face_cascade;
 CascadeClassifier eyes_cascade;
 
@@ -27,68 +32,29 @@ int main(int, char**)
     if( !eyes_cascade.load( eyes_cascade_name ) ){ cout << "--(!)Error loading"<< std::endl ; return -1; };
 
 
-/*
-    // init features with goodfeaturtotrack
-    //-------------------------------------
+    // init : face detection
+    //---------------
     Mat frame;
     Mat gframe; // gray frame that will be used for goodfeaturtotrack
     cap >> frame; // get a new frame from camera
     cvtColor(frame, gframe, CV_BGR2GRAY); // color -> gray
-    vector<Point2f> pts; // 2D vector for the list of corner points
-    goodFeaturesToTrack(gframe,pts,30,0.01,10,noArray(),3,false,0.04); // get the good corners
-*/
+    vector<vector<Point2f>> boxes = facePointsToTrack(gframe); //
 
-    // init with cascade detection
-    //----------------------------
-    Mat frame;
-    Mat gframe; // gray frame that will be used for goodfeaturtotrack
-    cap >> frame; // get a new frame from camera
-    cvtColor(frame, gframe, CV_BGR2GRAY); // color -> gray
-    vector<Rect> faces; // 2D vector for the list of faces
-    vector<Rect> eyes;// 2D vector for the list of eyes
-    // face detect
-    face_cascade.detectMultiScale( gframe, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30) );// detect + display faces
-    vector<Point2f> pts1(faces.size());//faces
-    for( size_t i = 0; i < faces.size(); i++ )
-      {
-        pts1[i] = Point( faces[i].x + faces[i].width*0.5, faces[i].y + faces[i].height*0.5 );
-      }
-    // eyes detect
-    eyes_cascade.detectMultiScale( gframe, eyes, 1.1, 2, 0 |CV_HAAR_SCALE_IMAGE, Size(30, 30) );
-    vector<Point2f> pts2(eyes.size());//eyes
-    for( size_t i = 0; i < eyes.size(); i++ )
-     {
-        pts2[i] = Point( eyes[i].x + eyes[i].width*0.5, eyes[i].y + eyes[i].height*0.5 );
-     }
-
-
-
-    // loop with tracking with calcOptimalFlow
+    // loop : calcOpticalFlow tracking
     //----------------------------------------
     namedWindow("tracking",1);
-
     Mat next_gframe;
-    vector<Point2f> next_pts1;
-    vector<Point2f> next_pts2;
     while(true)
     {
         cap >> frame;
         cvtColor(frame, next_gframe, CV_BGR2GRAY);
+        vector<vector<Point2f>> next_boxes;
+        trackBoxes(gframe,next_gframe,boxes,next_boxes); // tracking
 
-        vector<uchar> status;
-        Mat err;
-
-        calcOpticalFlowPyrLK(gframe,next_gframe,pts1,next_pts1,status,err); // compute next positions of features
-        calcOpticalFlowPyrLK(gframe,next_gframe,pts2,next_pts2,status,err); // compute next positions of features
-
-        // display tracked points
-        for( size_t i = 0; i < pts1.size(); i++ )
-        {
-            ellipse( frame, pts1[i], Size( 50, 50), 0, 0, 360, Scalar( 255, 255, 0 ), 4, 8, 0 );
-        }
-        for( size_t i = 0; i < pts2.size(); i++ )
-        {
-            ellipse( frame, pts2[i], Size( 10, 10), 0, 0, 360, Scalar( 255, 0, 255 ), 4, 8, 0 );
+        for(auto boxe : next_boxes){
+            for(auto corner : boxe){
+                ellipse( frame, corner, Size( 5, 5), 0, 0, 360, Scalar( 255, 255, 0 ), 4, 8, 0 );
+            }
         }
 
 
@@ -97,10 +63,85 @@ int main(int, char**)
         if(waitKey(30) >= 0) break;
 
         gframe = next_gframe.clone();
-        pts1 = next_pts1;
-        pts2 = next_pts2;
+        boxes = next_boxes;
     }
     // the camera will be deinitialized automatically in VideoCapture destructor
 
     return 0;
 }
+
+
+
+// detects faces in a gray frame and returns for each face the set of best points to track
+//----------------------------------------------------------------------------------------
+vector<vector<Point2f>> facePointsToTrack(Mat gframe){
+
+    vector<vector<Point2f>> boxes; // list of face-boxes with points to track
+
+    vector<Rect> faces; // 2D vector for the list of faces
+    face_cascade.detectMultiScale( gframe, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30) );// detect faces in gframe
+
+     for(auto face : faces){
+
+         // create the mask
+         Point2f center = (face.tl() + face.br())*0.5;
+         Mat mask(gframe.rows,gframe.cols, CV_8UC1, Scalar(0,0,0));
+         ellipse(mask, center, Size(face.width*0.2,face.height*0.4),0,0,360,Scalar(255,255,255),-1,8);
+
+         // get features in the mask
+         vector<Point2f> corners;
+         goodFeaturesToTrack(gframe,corners,50,0.01,10,mask=mask,3,false,0.04); // get the good corners
+
+         boxes.push_back(corners);
+     }
+
+     return boxes;
+}
+
+
+
+// track next points for each boxes of gray frame gframe in next frame next_frame
+//-------------------------------------------------------------------------------
+void trackBoxes(Mat gframe, Mat next_gframe, vector<vector<Point2f>> boxes, vector<vector<Point2f>> &next_boxes){
+
+    vector<uchar> status;
+    Mat err;
+
+    for(auto boxe : boxes){
+        vector<Point2f> next_boxe;
+        calcOpticalFlowPyrLK(gframe,next_gframe,boxe,next_boxe,status,err);
+
+        next_boxes.push_back(next_boxe);
+    }
+}
+
+
+/*
+// find the center of each set of corner in boxes
+//-----------------------------------------------
+vector<Point2f> findCenters( vector<vector<Point2f>> boxes){
+
+    vector<Point2f> centers;
+
+    for(auto boxe : boxes){
+
+        Point2f center(0,0);
+        float i = 0;
+
+        for(auto corner : boxe){
+            center = center + corner;
+            auto a = center.x;
+            auto b = center.y;
+            //center = corner;
+            i=i+1.;
+        }
+        if(i>0) i = 1./i;
+        if(i==0) i = 1.;
+        center = center*i;
+        auto a = center.x;
+        auto b = center.y;
+        centers.push_back(center);
+    }
+
+    return centers;
+}*/
