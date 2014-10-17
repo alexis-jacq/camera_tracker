@@ -80,7 +80,7 @@ int main(int, char**)
         centers = goodCenters;
 
 
-        if(modul==100){
+        if(modul==50){
             // check if new face
             vector<vector<Point2f>> boxesTest = facePointsToTrack(gframe); //
             vector<Point2f> centersTest = findCenters(boxesTest);
@@ -88,23 +88,24 @@ int main(int, char**)
 
             if(nb_facesTest > nb_faces){
                 cout << "new face detected"<< endl;
-                nb_faces = nb_facesTest;
+                nb_faces++;
                 int indice = findNewPoint(centers, centersTest);
                 boxes.push_back(boxesTest[indice]);
             }
 
             if(nb_facesTest < nb_faces){
                 cout << "face lost"<< endl;
-                nb_faces = nb_facesTest;
+                nb_faces--;
                 int indice = findNewPoint(centersTest, centers);
                 vector<vector<Point2f>> newBoxes;
                 if(indice>0){
                     for(int i = 0; i<indice; i++) newBoxes.push_back(boxes[i]);
-                    if(indice+1<boxes.size()){
-                        for(int i = indice+1; i<boxes.size(); i++) newBoxes.push_back(boxes[i]);
-                    }
+                }
+                if(indice+1<boxes.size()){
+                    for(int i = indice+1; i<boxes.size(); i++) newBoxes.push_back(boxes[i]);
                 }
                 boxes = newBoxes;
+                cout<<newBoxes.size()<<endl;
             }
             modul=0;
         }
@@ -170,6 +171,7 @@ vector<Point2f> findCenters( vector<vector<Point2f>> boxes){
 
     for(auto boxe : boxes){
 
+                        vector<double> calcGravities( vector<vector<Point2f>>, vector<Point2f>);
         Point2f center(0,0);
         float i = 0;
 
@@ -199,11 +201,11 @@ vector<Point2f> findGoodCenters( vector<vector<Point2f>> boxes, vector<Point2f> 
 
         Point2f center = centers[index];
         Point2f goodCenter(0,0);
-        float i = 0;
+        double i = 0;
 
         for(auto corner : boxe){
-            float delta = norm(center - corner);
-            float omega = 1./(delta*delta);
+            double delta = norm(center - corner);
+            double omega = 1./(delta*delta);
             goodCenter = goodCenter + omega*corner;
             i=i+omega;
         }
@@ -217,6 +219,8 @@ vector<Point2f> findGoodCenters( vector<vector<Point2f>> boxes, vector<Point2f> 
 
     return goodCenters;
 }
+
+
 
 // find the indice of the new detected face
 //-----------------------------------------
