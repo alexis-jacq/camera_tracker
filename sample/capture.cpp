@@ -55,11 +55,7 @@ int main(int, char**)
         }
 
         imshow("tracking", frame);
-        if(waitKey(30) >= 0) break;
-
-        // hold parameters
-        //gframe = next_gframe.clone();
-        //boxes = next_boxes;
+        if(waitKey(30) >= 0) break;	
 
 
         // every each 50 frame : check if there is a face just appears or disappears
