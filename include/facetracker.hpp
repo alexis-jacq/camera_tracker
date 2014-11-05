@@ -2,22 +2,35 @@
 #define FACETRACKER_HPP
 
 #include <opencv2/opencv.hpp>
-using namespace cv;
-using namespace std;
 
 class FaceTracker
 {
 public:
-    vector<Point2f> track(Mat&, Mat , vector<vector<Point2f>>&);
-    vector<vector<Point2f>> detect(Mat ,  CascadeClassifier);
-    void update(Mat, vector<vector<Point2f>>& ,vector<Point2f>, CascadeClassifier);
+    // constructor
+    FaceTracker(const std::string& cascade_src, int update_rate); // ? const ??
+
+    // public methods
+    void track(cv::Mat&);
+
+    // public variables
+    cv::Mat _debug;
+    std::vector<cv::Point2f> faces_centers;
 
 private:
-    void trackBoxes(Mat, Mat , vector<vector<Point2f>> , vector<vector<Point2f>>&);
-    vector<Point2f> findCenters( vector<vector<Point2f>> );
-    vector<Point2f> findGoodCenters( vector<vector<Point2f>>, vector<Point2f> );
-    int findNewPoint(vector<Point2f>, vector<Point2f> );
+    // private methods
+    void detecting(cv::Mat);
+    void tracking(cv::InputArray frame);
+    void update(std::vector<cv::Point2f>);
+    std::vector<cv::Point2f> findCenters( std::vector<std::vector<cv::Point2f>> );
+    std::vector<cv::Point2f> findGoodCenters( std::vector<std::vector<cv::Point2f>>, std::vector<cv::Point2f> );
+    int findNewPoint(std::vector<cv::Point2f>, std::vector<cv::Point2f> );
 
+    // private variables
+    cv::Mat prev_frame;
+    cv::CascadeClassifier face_cascade;
+    int update_rate;
+    int counter;
+    std::vector<std::vector<cv::Point2f>> faces_features;
 };
 
 #endif // FACETRACKER_HPP
